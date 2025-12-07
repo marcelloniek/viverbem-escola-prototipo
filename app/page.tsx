@@ -30,7 +30,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Calendar as CalendarIcon,
   Play,
   Stethoscope,
   HeartPulse,
@@ -41,7 +40,11 @@ import {
   ShieldCheck,
   NotebookPen,
   Phone,
+  ExternalLink,
 } from "lucide-react";
+
+// URL EXTERNA PARA ATENDIMENTOS
+const EXTERNAL_SCHEDULING_URL = "https://minha-plataforma-de-atendimentos.com";
 
 // -----------------------------
 // Tipos
@@ -76,16 +79,147 @@ type HealthSummary = {
   metas: string[];
 };
 
-type HomePageProps = { openSchedule: () => void };
+type HomePageProps = { trilhasDestaque: Trilha[]; openExternalScheduling: () => void };
+
+type Rede = {
+  id: string;
+  nome: string;
+};
+
+type Escola = {
+  id: string;
+  nome: string;
+  redeId: string;
+};
+
+type Conteudo = {
+  id: string;
+  titulo: string;
+  area: "psicopedagogia" | "psicologia" | "familia";
+  subgrupo: string;
+  descricao: string;
+  tipo: "video" | "texto";
+  seriesAlvo: string[];
+  redesAlvo: string[];
+  escolasAlvo?: string[];
+};
+
+type Trilha = {
+  id: string;
+  titulo: string;
+  descricao: string;
+  thumbnailEmoji: string; // para o protótipo vamos usar um emoji como “imagem”
+  conteudosIds: string[];
+  seriesAlvo: string[];
+  redesAlvo: string[];
+  escolasAlvo?: string[];
+  destaque: boolean;
+  destaqueInicio?: string;
+  destaqueFim?: string;
+};
+
+type UserContext = {
+  alunoNome: string;
+  serie: string;
+  escolaId: string;
+  redeId: string;
+};
 
 // -----------------------------
 // Mock data
 // -----------------------------
-const topics: {
-  psicopedagogia: TopicGroup[];
-  psicologia: TopicGroup[];
-  familia: TopicGroup[];
-} = {
+const redes: Rede[] = [
+  { id: "rede1", nome: "Rede ViverBem" },
+];
+
+const escolas: Escola[] = [
+  { id: "escola1", nome: "Escola ViverBem Central", redeId: "rede1" },
+];
+
+const userContext: UserContext = {
+  alunoNome: "Aluno Exemplo",
+  serie: "8º ano",
+  escolaId: "escola1",
+  redeId: "rede1",
+};
+
+const conteudos: Conteudo[] = [
+  {
+    id: "c1",
+    titulo: "Ansiedade na Escola",
+    area: "psicologia",
+    subgrupo: "Saúde Mental e Resiliência",
+    descricao: "Como lidar com pensamentos acelerados e medo de falhar.",
+    tipo: "video",
+    seriesAlvo: ["7º ano", "8º ano", "9º ano"],
+    redesAlvo: ["rede1"],
+  },
+  {
+    id: "c2",
+    titulo: "Hábitos de Estudo",
+    area: "psicopedagogia",
+    subgrupo: "Estratégias e Desempenho",
+    descricao: "Organização, foco e método para aprender melhor.",
+    tipo: "video",
+    seriesAlvo: ["6º ano", "7º ano", "8º ano", "9º ano"],
+    redesAlvo: ["rede1"],
+  },
+  {
+    id: "c3",
+    titulo: "Comunicação com seus Pais",
+    area: "familia",
+    subgrupo: "Comunicação e Vínculos",
+    descricao: "Como abrir o coração e ser ouvido em casa.",
+    tipo: "texto",
+    seriesAlvo: ["8º ano", "9º ano"],
+    redesAlvo: ["rede1"],
+  },
+  {
+    id: "c4",
+    titulo: "Autoestima e Imagem Corporal",
+    area: "psicologia",
+    subgrupo: "Desenvolvimento e Identidade",
+    descricao: "Aprendendo a se enxergar com carinho e respeito.",
+    tipo: "video",
+    seriesAlvo: ["7º ano", "8º ano", "9º ano"],
+    redesAlvo: ["rede1"],
+  },
+];
+
+const trilhas: Trilha[] = [
+  {
+    id: "t1",
+    titulo: "Trilha da Ansiedade Saudável",
+    descricao: "3 passos para entender, nomear e cuidar da ansiedade.",
+    thumbnailEmoji: "🧠",
+    conteudosIds: ["c1", "c4"],
+    seriesAlvo: ["8º ano", "9º ano"],
+    redesAlvo: ["rede1"],
+    destaque: true,
+  },
+  {
+    id: "t2",
+    titulo: "Trilha de Hábitos de Estudo",
+    descricao: "Organização, rotina e foco para estudar melhor.",
+    thumbnailEmoji: "📚",
+    conteudosIds: ["c2"],
+    seriesAlvo: ["6º ano", "7º ano", "8º ano"],
+    redesAlvo: ["rede1"],
+    destaque: true,
+  },
+  {
+    id: "t3",
+    titulo: "Trilha Família em Diálogo",
+    descricao: "Conteúdos para melhorar a comunicação em casa.",
+    thumbnailEmoji: "👨‍👩‍👧",
+    conteudosIds: ["c3"],
+    seriesAlvo: ["8º ano", "9º ano"],
+    redesAlvo: ["rede1"],
+    destaque: false,
+  },
+];
+
+const topics = {
   psicopedagogia: [
     {
       group: "Processos de Aprendizagem",
@@ -107,26 +241,6 @@ const topics: {
         "Autonomia",
       ],
     },
-    {
-      group: "Ambientes e Relações",
-      items: [
-        "Adaptação à escola",
-        "Escola–família",
-        "Professor mediador",
-        "Ambiente de estudo",
-        "Aprendizagem cooperativa",
-      ],
-    },
-    {
-      group: "Linguagem e Avaliação",
-      items: [
-        "Leitura e interpretação",
-        "Escrita e expressão",
-        "Avaliação formativa",
-        "Reforço positivo",
-        "Plano individualizado",
-      ],
-    },
   ],
   psicologia: [
     {
@@ -142,23 +256,6 @@ const topics: {
         "Tomada de decisões",
       ],
     },
-    {
-      group: "Saúde Mental e Resiliência",
-      items: ["Ansiedade", "Depressão", "Luto e perdas", "Resiliência"],
-    },
-    {
-      group: "Relações e Influências",
-      items: [
-        "Amizades e pertencimento",
-        "Pais e autoridade",
-        "Comunicação assertiva",
-        "Bullying e cyberbullying",
-        "Pressão de pares",
-        "Redes sociais",
-        "Sono e hábitos",
-        "Esperança e motivação",
-      ],
-    },
   ],
   familia: [
     {
@@ -172,22 +269,6 @@ const topics: {
         "Parentalidade consciente",
         "Autonomia dos filhos",
         "Valores e espiritualidade",
-      ],
-    },
-    {
-      group: "Desafios e Transtornos",
-      items: ["TDAH", "TEA", "Ansiedade e depressão", "Bullying: como reagir"],
-    },
-    {
-      group: "Tecnologia e Saúde",
-      items: [
-        "Uso de telas e internet",
-        "Prevenção às drogas",
-        "Sexualidade",
-        "Rotina saudável",
-        "Saúde dos cuidadores",
-        "Participação na escola",
-        "Fé e propósito",
       ],
     },
   ],
@@ -270,38 +351,67 @@ function SectionTitle({ icon: Icon, title, subtitle }: SectionTitleProps) {
 }
 
 // -----------------------------
+// Helpers de filtro de trilhas/conteúdos
+// -----------------------------
+function filtrarTrilhasParaUsuario(all: Trilha[], ctx: UserContext): Trilha[] {
+  return all.filter((t) => {
+    const serieOK = t.seriesAlvo.includes(ctx.serie);
+    const redeOK = t.redesAlvo.length === 0 || t.redesAlvo.includes(ctx.redeId);
+    const escolaOK =
+      !t.escolasAlvo || t.escolasAlvo.length === 0 || t.escolasAlvo.includes(ctx.escolaId);
+    return serieOK && redeOK && escolaOK;
+  });
+}
+
+function filtrarConteudosParaUsuario(all: Conteudo[], ctx: UserContext): Conteudo[] {
+  return all.filter((c) => {
+    const serieOK = c.seriesAlvo.includes(ctx.serie);
+    const redeOK = c.redesAlvo.length === 0 || c.redesAlvo.includes(ctx.redeId);
+    const escolaOK =
+      !c.escolasAlvo || c.escolasAlvo.length === 0 || c.escolasAlvo.includes(ctx.escolaId);
+    return serieOK && redeOK && escolaOK;
+  });
+}
+
+// -----------------------------
 // Pages
 // -----------------------------
-function HomePage({ openSchedule }: HomePageProps) {
+function HomePage({ trilhasDestaque, openExternalScheduling }: HomePageProps) {
   return (
     <div>
       <SectionTitle
         icon={Sparkles}
         title="Bem-vindo(a)"
-        subtitle="Conteúdos e serviços para cuidar do corpo, mente e espírito."
+        subtitle="Trilhas e saúde para cuidar do corpo, mente e espírito."
       />
       <div className="px-4 grid gap-3">
+        {/* Trilhas em destaque */}
         <Card className="rounded-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Trilhas recomendadas</CardTitle>
+            <CardTitle className="text-base">Trilhas em destaque</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2">
-            {[
-              { title: "Ansiedade na escola", chip: "Psicologia" },
-              { title: "Hábitos de estudo", chip: "Psicopedagogia" },
-              { title: "Comunicação com seu filho", chip: "Família" },
-            ].map((t, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-slate-800">{t.title}</p>
-                  <p className="text-xs text-slate-500">Trilha rápida • 4 módulos</p>
+          <CardContent className="grid gap-3">
+            {trilhasDestaque.length === 0 && (
+              <p className="text-sm text-slate-500">
+                Nenhuma trilha em destaque no momento. Explore a aba Conteúdos.
+              </p>
+            )}
+            {trilhasDestaque.map((t) => (
+              <div key={t.id} className="flex items-center justify-between">
+                <div className="flex items-start gap-2">
+                  <div className="text-2xl">{t.thumbnailEmoji}</div>
+                  <div>
+                    <p className="font-medium text-slate-800">{t.titulo}</p>
+                    <p className="text-xs text-slate-500 line-clamp-2">{t.descricao}</p>
+                  </div>
                 </div>
-                <Badge>{t.chip}</Badge>
+                <Badge variant="secondary">Trilha</Badge>
               </div>
             ))}
           </CardContent>
         </Card>
 
+        {/* Resumo saúde */}
         <Card className="rounded-2xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Próximos passos de saúde</CardTitle>
@@ -340,9 +450,13 @@ function HomePage({ openSchedule }: HomePageProps) {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Button variant="secondary" className="flex-1" onClick={openSchedule}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Agendar
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={openExternalScheduling}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Atendimentos
               </Button>
             </div>
           </CardContent>
@@ -367,7 +481,11 @@ function TopicGroups({ data, accent }: TopicGroupsProps) {
                   <Play className="h-4 w-4" />
                   <span>{it}</span>
                 </div>
-                <Button size="sm" variant="secondary">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => alert("Tela de conteúdo detalhado em desenvolvimento.")}
+                >
                   Ver
                 </Button>
               </div>
@@ -379,24 +497,60 @@ function TopicGroups({ data, accent }: TopicGroupsProps) {
   );
 }
 
-function ContentPage() {
-  const [tab, setTab] = useState<string>("psico");
+type ContentPageProps = {
+  trilhasUsuario: Trilha[];
+};
+
+function ContentPage({ trilhasUsuario }: ContentPageProps) {
+  const [tab, setTab] = useState<string>("trilhas");
+
   return (
     <div>
-      <SectionTitle icon={BookOpen} title="Conteúdos" subtitle="Explore por área e subgrupo temático." />
+      <SectionTitle
+        icon={BookOpen}
+        title="Conteúdos"
+        subtitle="Explore trilhas e temas por área."
+      />
       <div className="px-4">
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-3 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="trilhas">Trilhas</TabsTrigger>
             <TabsTrigger value="psico">Psicoped.</TabsTrigger>
             <TabsTrigger value="psi">Psicologia</TabsTrigger>
             <TabsTrigger value="fam">Família</TabsTrigger>
           </TabsList>
+
+          {/* Trilhas */}
+          <TabsContent value="trilhas" className="mt-3">
+            <div className="grid grid-cols-2 gap-3">
+              {trilhasUsuario.map((t) => (
+                <Card key={t.id} className="rounded-2xl px-2 pt-2 pb-3">
+                  <div className="text-3xl mb-1">{t.thumbnailEmoji}</div>
+                  <p className="text-sm font-semibold leading-snug">{t.titulo}</p>
+                  <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">{t.descricao}</p>
+                  <Button
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => alert("Tela da trilha detalhada em desenvolvimento.")}
+                  >
+                    Ver trilha
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          {/* Psico */}
           <TabsContent value="psico" className="mt-3">
             <TopicGroups data={topics.psicopedagogia} accent="from-sky-50 to-sky-100" />
           </TabsContent>
+
+          {/* Psicologia */}
           <TabsContent value="psi" className="mt-3">
             <TopicGroups data={topics.psicologia} accent="from-violet-50 to-violet-100" />
           </TabsContent>
+
+          {/* Família */}
           <TabsContent value="fam" className="mt-3">
             <TopicGroups data={topics.familia} accent="from-emerald-50 to-emerald-100" />
           </TabsContent>
@@ -407,84 +561,42 @@ function ContentPage() {
 }
 
 function ServicesPage() {
-  const [open, setOpen] = useState<boolean>(false);
-  const [type, setType] = useState<Professional["type"] | "todos">("psicologo");
-
-  const pros = useMemo(
-    () => professionals.filter((p) => (type === "todos" ? true : p.type === type)),
-    [type]
-  );
+  const handleOpenExternal = () => {
+    if (typeof window !== "undefined") {
+      window.open(EXTERNAL_SCHEDULING_URL, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <div>
-      <SectionTitle icon={Stethoscope} title="Serviços" subtitle="Agendamentos e carteira de saúde." />
+      <SectionTitle
+        icon={Stethoscope}
+        title="Serviços"
+        subtitle="Acesse os atendimentos pela plataforma parceira."
+      />
       <div className="px-4 grid gap-3">
+        {/* bloco explicativo */}
         <Card className="rounded-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Agendar atendimento</CardTitle>
+            <CardTitle className="text-base">Atendimentos online</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3">
-            <div className="grid gap-2">
-              <Label>Tipo de atendimento</Label>
-              <Select value={type} onValueChange={(v) => setType(v as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Escolha" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="psicologo">Psicológico</SelectItem>
-                  <SelectItem value="medico">Médico</SelectItem>
-                  <SelectItem value="nutricionista">Nutricional</SelectItem>
-                  <SelectItem value="espiritual">Espiritual</SelectItem>
-                  <SelectItem value="todos">Mostrar todos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              {pros.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl border">
-                  <div>
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-xs text-slate-500">{p.role}</p>
-                  </div>
-                  <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">Agendar</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Novo agendamento</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid gap-3">
-                        <div className="grid gap-1">
-                          <Label>Profissional</Label>
-                          <Input value={`${p.name} — ${p.role}`} readOnly />
-                        </div>
-                        <div className="grid gap-1">
-                          <Label>Data</Label>
-                          <Input type="date" />
-                        </div>
-                        <div className="grid gap-1">
-                          <Label>Horário</Label>
-                          <Input type="time" />
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Checkbox id={`consent-${p.id}`} />
-                          <Label htmlFor={`consent-${p.id}`} className="text-sm">
-                            Li e aceito as regras de atendimento
-                          </Label>
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button onClick={() => setOpen(false)}>Confirmar</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              ))}
-            </div>
+          <CardContent className="grid gap-2 text-sm text-slate-700">
+            <p>
+              Os atendimentos médicos, psicológicos, nutricionais e espirituais são realizados em
+              uma plataforma externa segura, já em funcionamento.
+            </p>
+            <p>
+              Para agendar, clique no botão abaixo. Você será redirecionado para o ambiente de
+              teleatendimento, onde fará login e escolherá o melhor horário.
+            </p>
+            <Button className="mt-2" onClick={handleOpenExternal}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Acessar plataforma de atendimentos
+            </Button>
           </CardContent>
         </Card>
 
+        {/* Carteira de saúde resumo (igual antes) */}
         <Card className="rounded-2xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Carteira de saúde</CardTitle>
@@ -560,6 +672,9 @@ function FamilyPage() {
 }
 
 function ProfilePage() {
+  const escola = escolas.find((e) => e.id === userContext.escolaId);
+  const rede = redes.find((r) => r.id === userContext.redeId);
+
   return (
     <div>
       <SectionTitle icon={ShieldCheck} title="Perfil" subtitle="Preferências e privacidade." />
@@ -571,11 +686,19 @@ function ProfilePage() {
           <CardContent className="grid gap-3">
             <div className="grid gap-1">
               <Label>Nome do aluno</Label>
-              <Input defaultValue="Aluno Exemplo" />
+              <Input defaultValue={userContext.alunoNome} />
             </div>
             <div className="grid gap-1">
-              <Label>E-mail</Label>
-              <Input defaultValue="aluno@escola.com" />
+              <Label>Série escolar</Label>
+              <Input defaultValue={userContext.serie} />
+            </div>
+            <div className="grid gap-1">
+              <Label>Escola</Label>
+              <Input defaultValue={escola?.nome ?? ""} />
+            </div>
+            <div className="grid gap-1">
+              <Label>Rede escolar</Label>
+              <Input defaultValue={rede?.nome ?? ""} />
             </div>
             <div className="grid gap-1">
               <Label>Preferências de conteúdo</Label>
@@ -602,7 +725,22 @@ function ProfilePage() {
 // -----------------------------
 export default function App() {
   const [tab, setTab] = useState<string>("inicio");
-  const [scheduleOpen, setScheduleOpen] = useState<boolean>(false);
+
+  const trilhasUsuario = useMemo(
+    () => filtrarTrilhasParaUsuario(trilhas, userContext),
+    []
+  );
+
+  const trilhasDestaque = useMemo(
+    () => trilhasUsuario.filter((t) => t.destaque),
+    [trilhasUsuario]
+  );
+
+  const handleOpenExternalScheduling = () => {
+    if (typeof window !== "undefined") {
+      window.open(EXTERNAL_SCHEDULING_URL, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <MobileShell tab={tab} setTab={setTab}>
@@ -614,55 +752,18 @@ export default function App() {
           exit={{ opacity: 0, y: -12 }}
           transition={{ duration: 0.2 }}
         >
-          {tab === "inicio" && <HomePage openSchedule={() => setScheduleOpen(true)} />}
-          {tab === "conteudos" && <ContentPage />}
+          {tab === "inicio" && (
+            <HomePage
+              trilhasDestaque={trilhasDestaque}
+              openExternalScheduling={handleOpenExternalScheduling}
+            />
+          )}
+          {tab === "conteudos" && <ContentPage trilhasUsuario={trilhasUsuario} />}
           {tab === "servicos" && <ServicesPage />}
           {tab === "familia" && <FamilyPage />}
           {tab === "perfil" && <ProfilePage />}
         </motion.div>
       </AnimatePresence>
-
-      {/* Quick schedule dialog accessible from Home */}
-      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Agendar atendimento</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div className="grid gap-1">
-              <Label>Tipo</Label>
-              <Select defaultValue="psicologo">
-                <SelectTrigger>
-                  <SelectValue placeholder="Escolha" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="psicologo">Psicológico</SelectItem>
-                  <SelectItem value="medico">Médico</SelectItem>
-                  <SelectItem value="nutricionista">Nutricional</SelectItem>
-                  <SelectItem value="espiritual">Espiritual</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label>Data</Label>
-              <Input type="date" />
-            </div>
-            <div className="grid gap-1">
-              <Label>Horário</Label>
-              <Input type="time" />
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Checkbox id="consent2" />
-              <Label htmlFor="consent2" className="text-sm">
-                Concordo com os termos de atendimento
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setScheduleOpen(false)}>Confirmar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </MobileShell>
   );
 }
